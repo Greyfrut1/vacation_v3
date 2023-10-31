@@ -1,0 +1,9 @@
+name: Vacations module
+type: module
+description: Vacations module for Drupal 10.
+package: Custom
+version: 1.0
+core_version_requirement: ^9 || ^10
+dependencies:
+  - drupal:views
+

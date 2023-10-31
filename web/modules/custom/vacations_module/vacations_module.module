@@ -1,0 +1,34 @@
+<?php
+
+use Drupal\vacations_module\Entity\Certificate;
+
+/**
+ * Implements hook_cron() to create certificates for new users.
+ */
+function vacations_module_cron() {
+  // Виводимо повідомлення "test" до журналу.
+  \Drupal::logger('vacations_module')->notice('Test message');
+
+  $sixMonthsAgo = strtotime('-5 minutes');
+  \Drupal::messenger()->addMessage($sixMonthsAgo);
+  $query = \Drupal::entityQuery('user')
+    ->condition('created', $sixMonthsAgo, '<')
+    ->accessCheck(FALSE); // Перевірте, чи для користувача ще не створено сертифікат.
+
+  $uids = $query->execute();
+
+  foreach ($uids as $uid) {
+    \Drupal::messenger()->addMessage($uid);
+
+    // Створюємо нову сутність "certificate" для кожного користувача.
+    $certificate = Certificate::create([
+      'staff_id' => $uid,
+      'days' => 10, // Задайте потрібну кількість днів.
+      // Додайте інші необхідні дані для сутності.
+    ]);
+    $certificate->save();
+  }
+
+  // Виводимо також повідомлення про створення сертифікату.
+  \Drupal::messenger()->addMessage('Certificate created');
+}
