@@ -2,33 +2,67 @@
 
 use Drupal\vacations_module\Entity\Certificate;
 
+
+
 /**
  * Implements hook_cron() to create certificates for new users.
  */
 function vacations_module_cron() {
-  // Виводимо повідомлення "test" до журналу.
-  \Drupal::logger('vacations_module')->notice('Test message');
 
   $sixMonthsAgo = strtotime('-5 minutes');
+
   \Drupal::messenger()->addMessage($sixMonthsAgo);
+
+  $certificate_query = \Drupal::entityQuery('certificate')
+    ->accessCheck(FALSE);
+  $certificate_query->exists('staff_id');
+  $user_ids_with_certificates = $certificate_query->execute();
+
+  $certificates = Certificate::loadMultiple($user_ids_with_certificates);
+  $existing_staff_ids = [];
+
+  foreach ($certificates as $certificate) {
+    $staff_id = $certificate->get('staff_id')->target_id;
+    $certificate_id = $certificate->get('id')->getValue();
+    $existing_staff_ids[$staff_id] = $certificate_id;
+  }
+
+  foreach ($existing_staff_ids as $key => $value){
+    \Drupal::messenger()->addMessage('Existing staff_ids: ' . implode(', ', $value) . ', ' . $key);
+
+    $entity = \Drupal::entityTypeManager()->getStorage('certificate')->load($value[0]['value']);
+    $current_certificate_staff_id = $entity->get('staff_id')->target_id;
+    $current_certificate_date = $entity->get('created');
+
+
+    \Drupal::messenger()->addMessage('date: '. $current_certificate_date['value']);
+    if($current_certificate_date > $sixMonthsAgo){
+      $certificate = Certificate::create([
+        'staff_id' => $current_certificate_staff_id,
+        'days' => 10,
+      ]);
+      $certificate->save();
+      \Drupal::messenger()->addMessage('Certificate second created');
+    }
+  }
+
+
   $query = \Drupal::entityQuery('user')
     ->condition('created', $sixMonthsAgo, '<')
-    ->accessCheck(FALSE); // Перевірте, чи для користувача ще не створено сертифікат.
+    ->condition('uid', $existing_staff_ids, 'NOT IN')
+    ->accessCheck(FALSE);
 
   $uids = $query->execute();
 
   foreach ($uids as $uid) {
     \Drupal::messenger()->addMessage($uid);
 
-    // Створюємо нову сутність "certificate" для кожного користувача.
     $certificate = Certificate::create([
       'staff_id' => $uid,
-      'days' => 10, // Задайте потрібну кількість днів.
-      // Додайте інші необхідні дані для сутності.
+      'days' => 10,
     ]);
     $certificate->save();
+    \Drupal::messenger()->addMessage('Certificate created');
   }
 
-  // Виводимо також повідомлення про створення сертифікату.
-  \Drupal::messenger()->addMessage('Certificate created');
 }
