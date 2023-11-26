@@ -20,23 +20,23 @@ function vacations_module_cron() {
 
   $certificates = Certificate::loadMultiple($user_ids_with_certificates);
   $existing_staff_ids = [];
-
   foreach ($certificates as $certificate) {
     $staff_id = $certificate->get('staff_id')->target_id;
-    $certificate_id = $certificate->get('id')->getValue();
+    $certificate_id = $certificate->id();
     $existing_staff_ids[$staff_id] = $certificate_id;
+
   }
 
   foreach ($existing_staff_ids as $key => $value){
-    \Drupal::messenger()->addMessage('Existing staff_ids: ' . implode(', ', $value) . ', ' . $key);
+    \Drupal::messenger()->addMessage('Existing staff_ids: ' .  $value . ', ' . $key);
 
-    $entity = \Drupal::entityTypeManager()->getStorage('certificate')->load($value[0]['value']);
+    $entity = \Drupal::entityTypeManager()->getStorage('certificate')->load($value);
     $current_certificate_staff_id = $entity->get('staff_id')->target_id;
-    $current_certificate_date = $entity->get('created');
+    $current_certificate_date = $entity->get('created')->value;
 
 
-    \Drupal::messenger()->addMessage('date: '. $current_certificate_date['value']);
-    if($current_certificate_date > $sixMonthsAgo){
+    \Drupal::messenger()->addMessage('date: '. $current_certificate_date);
+    if($current_certificate_date < $sixMonthsAgo){
       $certificate = Certificate::create([
         'staff_id' => $current_certificate_staff_id,
         'days' => 10,
@@ -47,12 +47,14 @@ function vacations_module_cron() {
   }
 
 
+
   $query = \Drupal::entityQuery('user')
     ->condition('created', $sixMonthsAgo, '<')
-    ->condition('uid', $existing_staff_ids, 'NOT IN')
+    ->condition('uid', array_keys($existing_staff_ids), 'NOT IN')
     ->accessCheck(FALSE);
 
   $uids = $query->execute();
+
 
   foreach ($uids as $uid) {
     \Drupal::messenger()->addMessage($uid);
