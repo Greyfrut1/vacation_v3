@@ -1,0 +1,24 @@
+vacations_module.certificate:
+  path: '/admin/structure/certificate'
+  defaults:
+    _entity_list: 'vacations_module.certificate'
+    _title: 'Certificates'
+  requirements:
+    _permission: 'administer site configuration'
+
+vacations_module.request_form:
+  path: '/request/add'
+  defaults:
+    _controller: '\Drupal\vacations_module\Controller\RequestController::getForm'
+    _title: 'Vacation Request Form'
+  requirements:
+    _permission: 'access content'
+
+vacations_module.vacation_requests_page:
+  path: '/vacation-requests'
+  defaults:
+    _controller: '\Drupal\vacations_module\Controller\VacationRequestsController::vacationRequestsPage'
+    _title: 'Vacation Requests'
+  requirements:
+    _permission: 'access content'
+

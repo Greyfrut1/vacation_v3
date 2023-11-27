@@ -1,0 +1,20 @@
+vacations_module.certificate:
+  type: entity
+  label: 'Certificate'
+  base_table: certificate
+  fieldable: true
+  entity_keys:
+    id:
+      type: integer
+      label: 'ID'
+      constraints:
+        serial: {}
+    uuid:
+      type: uuid
+      label: 'UUID'
+  links:
+    canonical: '/admin/structure/certificate/{certificate}'
+    add-page: '/admin/structure/certificate/add'
+    edit-form: '/admin/structure/certificate/{certificate}/edit'
+    delete-form: '/admin/structure/certificate/{certificate}/delete'
+    collection: '/admin/structure/certificate'

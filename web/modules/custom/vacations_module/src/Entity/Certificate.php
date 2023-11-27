@@ -10,17 +10,28 @@ use Drupal\Core\Field\BaseFieldDefinition;
 /**
  * Defines the certificate entity.
  *
- * @ingroup certificate
+ * @ingroup vacations_module
  *
  * @ContentEntityType(
  *   id = "certificate",
- *   label = @Translation("certificate"),
+ *   label = @Translation("Certificate"),
  *   base_table = "certificate",
  *   entity_keys = {
  *     "id" = "id",
+ *     "uuid" = "uuid",
  *     "created" = "created",
  *   },
  *   admin_permission = "administer my awesome entities",
+ *   handlers = {
+ *     "views_data" = "Drupal\views\EntityViewsData",
+ *   },
+ *   links = {
+ *     "canonical" = "/certificate/{certificate}",
+ *     "add-form" = "/certificate/add",
+ *     "edit-form" = "/certificate/{certificate}/edit",
+ *     "delete-form" = "/certificate/{certificate}/delete",
+ *     "collection" = "/admin/content/certificates",
+ *   },
  * )
  */
 class Certificate extends ContentEntityBase implements ContentEntityInterface {
@@ -39,6 +50,11 @@ class Certificate extends ContentEntityBase implements ContentEntityInterface {
     $fields['id'] = BaseFieldDefinition::create('integer')
       ->setLabel(t('ID'))
       ->setDescription(t('Id of certificate entity'))
+      ->setReadOnly(TRUE);
+
+    $fields['uuid'] = BaseFieldDefinition::create('uuid')
+      ->setLabel(t('UUID'))
+      ->setDescription(t('The UUID of the certificate entity.'))
       ->setReadOnly(TRUE);
 
     $fields['created'] = BaseFieldDefinition::create('created')

@@ -10,8 +10,10 @@ use Drupal\vacations_module\Entity\Certificate;
 function vacations_module_cron() {
 
   $sixMonthsAgo = strtotime('-5 minutes');
+  $oneYear = strtotime('-10 minutes');
 
-  \Drupal::messenger()->addMessage($sixMonthsAgo);
+  \Drupal::messenger()->addMessage('one year' . $oneYear);
+  \Drupal::messenger()->addMessage('half year' . $sixMonthsAgo);
 
   $certificate_query = \Drupal::entityQuery('certificate')
     ->accessCheck(FALSE);
@@ -28,7 +30,7 @@ function vacations_module_cron() {
   }
 
   foreach ($existing_staff_ids as $key => $value){
-    \Drupal::messenger()->addMessage('Existing staff_ids: ' .  $value . ', ' . $key);
+    \Drupal::messenger()->addMessage('certificate: ' .  $value . ', staff id' . $key);
 
     $entity = \Drupal::entityTypeManager()->getStorage('certificate')->load($value);
     $current_certificate_staff_id = $entity->get('staff_id')->target_id;
@@ -46,12 +48,22 @@ function vacations_module_cron() {
     }
   }
 
+  foreach ($certificates as $certificate){
+    if($certificate->get('created')->value < $oneYear){
+      \Drupal::messenger()->addMessage('Older certificate:' . $certificate->id());
+      $certificate->delete();
+    }
+  }
+
 
 
   $query = \Drupal::entityQuery('user')
     ->condition('created', $sixMonthsAgo, '<')
-    ->condition('uid', array_keys($existing_staff_ids), 'NOT IN')
     ->accessCheck(FALSE);
+
+  if (!empty($existing_staff_ids)) {
+    $query->condition('uid', array_keys($existing_staff_ids), 'NOT IN');
+  }
 
   $uids = $query->execute();
 
