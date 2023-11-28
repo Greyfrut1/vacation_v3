@@ -14,7 +14,7 @@ vacations_module.request_form:
   requirements:
     _permission: 'access content'
 
-vacations_module.vacation_requests_page:
+vacations_module.vacation_requests:
   path: '/vacation-requests'
   defaults:
     _controller: '\Drupal\vacations_module\Controller\VacationRequestsController::vacationRequestsPage'
@@ -22,3 +22,18 @@ vacations_module.vacation_requests_page:
   requirements:
     _permission: 'access content'
 
+vacations_module.approve_action:
+  path: '/vacation-request/{request}/approve'
+  defaults:
+    _controller: '\Drupal\vacations_module\Controller\VacationRequestsController::approveAction'
+    _title: 'Approve Vacation Request'
+  requirements:
+    _permission: 'administer site configuration'
+
+vacations_module.reject_action:
+  path: '/vacation-request/{request}/reject'
+  defaults:
+    _controller: '\Drupal\vacations_module\Controller\VacationRequestsController::rejectAction'
+    _title: 'Reject Vacation Request'
+  requirements:
+    _permission: 'administer site configuration'

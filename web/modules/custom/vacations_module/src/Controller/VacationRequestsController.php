@@ -1,16 +1,13 @@
 <?php
-// vacations_module/src/Controller/VacationRequestsController.php
 
 namespace Drupal\vacations_module\Controller;
 
+use Drupal\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Form\FormBuilderInterface;
-use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Link;
-use Drupal\vacations_module\Form\VacationRequestActionForm;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
  * Controller for displaying vacation requests.
@@ -25,44 +22,20 @@ class VacationRequestsController extends ControllerBase {
   protected $entityTypeManager;
 
   /**
-   * The form builder.
-   *
-   * @var \Drupal\Core\Form\FormBuilderInterface
-   */
-  protected $formBuilder;
-
-  /**
-   * The current user.
-   *
-   * @var \Drupal\Core\Session\AccountProxyInterface
-   */
-  protected $currentUser;
-
-  /**
    * Constructs a new VacationRequestsController.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
-   * @param \Drupal\Core\Form\FormBuilderInterface $form_builder
-   *   The form builder.
-   * @param \Drupal\Core\Session\AccountProxyInterface $current_user
-   *   The current user.
    */
-  public function __construct(EntityTypeManagerInterface $entity_type_manager, FormBuilderInterface $form_builder, AccountProxyInterface $current_user) {
+  public function __construct(EntityTypeManagerInterface $entity_type_manager) {
     $this->entityTypeManager = $entity_type_manager;
-    $this->formBuilder = $form_builder;
-    $this->currentUser = $current_user;
   }
 
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container) {
-    return new static(
-      $container->get('entity_type.manager'),
-      $container->get('form_builder'),
-      $container->get('current_user')
-    );
+  public static function create(ContainerInterface|\Symfony\Component\DependencyInjection\ContainerInterface $container) {
+    return new static($container->get('entity_type.manager'));
   }
 
   /**
@@ -76,33 +49,36 @@ class VacationRequestsController extends ControllerBase {
       'user_id' => $this->t('User ID'),
       'status' => $this->t('Status'),
       'reason' => $this->t('Reason'),
-//      'actions' => $this->t('Actions'),
+      'actions' => $this->t('Actions'),
     ];
 
     $rows = [];
 
     // Load vacation requests.
-    $query = \Drupal::entityTypeManager()->getStorage('request')->getQuery();
-    $request_ids = $query
-      ->condition('user_id', $this->currentUser->id())
-      ->accessCheck(FALSE)
-      ->execute();
-
+    $query = $this->entityTypeManager->getStorage('request')->getQuery()->accessCheck(FALSE);
+    $request_ids = $query->execute();
     $requests = $this->entityTypeManager->getStorage('request')->loadMultiple($request_ids);
 
     foreach ($requests as $request) {
+      // Build actions.
+      $actions = $this->buildActions($request);
+
       $rows[] = [
         'id' => $request->id(),
         'start_date' => date('Y-m-d H:i:s', $request->get('start_date')->value),
         'end_date' => date('Y-m-d H:i:s', $request->get('end_date')->value),
-        'user_id' => $request->get('user_id')->entity->id(), // Assuming user_id is an entity reference field
+        'user_id' => $request->get('user_id')->entity->getAccountName(),
         'status' => $request->get('status')->value,
         'reason' => $request->get('reason')->value,
-//        'actions' => $this->buildActions($request),
+        'actions' => [
+          'data' => [
+            '#type' => 'container',
+            'approve' => $actions['approve'],
+            'reject' => $actions['reject'],
+          ],
+        ],
       ];
     }
-
-    $form = $this->formBuilder->getForm('\Drupal\vacations_module\Form\VacationRequestActionForm');
 
     return [
       'table' => [
@@ -111,7 +87,6 @@ class VacationRequestsController extends ControllerBase {
         '#rows' => $rows,
         '#empty' => $this->t('No vacation requests found.'),
       ],
-      'form' => $form,
     ];
   }
 
@@ -128,25 +103,42 @@ class VacationRequestsController extends ControllerBase {
     $actions = [];
 
     // Add "Approve" button.
-    $actions['approve'] = Link::createFromRoute(
-      $this->t('Approve'),
-      'vacations_module.request_action_form',
-      [
-        'request' => $request->id(),
-        'action' => 'approve',
-      ]
-    );
+    $actions['approve'] = [
+      '#type' => 'link',
+      '#title' => $this->t('Approve'),
+      '#url' => Url::fromRoute(
+        'vacations_module.approve_action',
+        ['request' => $request->id()]
+      ),
+    ];
 
-    // Add "Reject" button.
-    $actions['reject'] = Link::createFromRoute(
-      $this->t('Reject'),
-      'vacations_module.request_action_form',
-      [
-        'request' => $request->id(),
-        'action' => 'reject',
-      ]
-    );
+// Add "Reject" button.
+    $actions['reject'] = [
+      '#type' => 'link',
+      '#title' => $this->t('Reject'),
+      '#url' => Url::fromRoute(
+        'vacations_module.reject_action',
+        ['request' => $request->id()]
+      ),
+    ];
 
     return $actions;
   }
+  public function approveAction($request) {
+    // Ваш код для затвердження запиту.
+    // Наприклад, зміна статусу запиту на "Approved".
+    \Drupal::messenger()->addMessage('approve');
+    // Повертаємо користувача на сторінку списку запитів.
+    return $this->redirect('vacations_module.vacation_requests');
+  }
+
+  public function rejectAction($request) {
+    // Ваш код для відхилення запиту.
+    // Наприклад, зміна статусу запиту на "Rejected".
+    \Drupal::messenger()->addMessage('reject');
+    // Повертаємо користувача на сторінку списку запитів.
+    return $this->redirect('vacations_module.vacation_requests');
+  }
+
 }
+

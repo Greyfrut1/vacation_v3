@@ -6,7 +6,7 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 
 /**
- * Provides a form for approving or rejecting vacation requests.
+ * Provides a form for vacation request actions.
  */
 class VacationRequestActionForm extends FormBase {
 
@@ -20,16 +20,11 @@ class VacationRequestActionForm extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public function buildForm(array $form, FormStateInterface $form_state) {
-    $form['action'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Select an action'),
-      '#options' => [
-        'approve' => $this->t('Approve'),
-        'reject' => $this->t('Reject'),
-      ],
-      '#required' => TRUE,
-    ];
+  public function buildForm(array $form, FormStateInterface $form_state, $request = NULL, $action = NULL) {
+    // Add your form elements here.
+
+    $form['#request'] = $request;
+    $form['#action'] = $action;
 
     $form['submit'] = [
       '#type' => 'submit',
@@ -42,10 +37,18 @@ class VacationRequestActionForm extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public function submitForm(array &$form, FormStateInterface $form_state) {
-    $action = $form_state->getValue('action');
-    // You can perform actions based on the selected option.
-    // For now, let's just display a message.
-    \Drupal::messenger()->addMessage($this->t('Vacation request has been @action.', ['@action' => $action]));
+  public function validateForm(array &$form, FormStateInterface $form_state) {
+    // Add validation logic if needed.
   }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function submitForm(array &$form, FormStateInterface $form_state) {
+    $request = $form_state->get('request');
+    $action = $form_state->get('action');
+
+    // Додайте логіку вибору дії тут та викликайте методи approveAction або rejectAction.
+  }
+
 }
