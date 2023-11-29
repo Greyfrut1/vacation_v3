@@ -4,9 +4,11 @@ namespace Drupal\vacations_module\Controller;
 
 use Drupal\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Link;
+use Drupal\vacations_module\Entity\Certificate;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
@@ -55,7 +57,7 @@ class VacationRequestsController extends ControllerBase {
     $rows = [];
 
     // Load vacation requests.
-    $query = $this->entityTypeManager->getStorage('request')->getQuery()->accessCheck(FALSE);
+    $query = $this->entityTypeManager->getStorage('request')->getQuery()->accessCheck(FALSE)->condition('status', 'pending', '=');
     $request_ids = $query->execute();
     $requests = $this->entityTypeManager->getStorage('request')->loadMultiple($request_ids);
 
@@ -120,22 +122,75 @@ class VacationRequestsController extends ControllerBase {
         'vacations_module.reject_action',
         ['request' => $request->id()]
       ),
+      '#cache' => ['max-age' => 0],
     ];
 
     return $actions;
   }
   public function approveAction($request) {
-    // Ваш код для затвердження запиту.
-    // Наприклад, зміна статусу запиту на "Approved".
-    \Drupal::messenger()->addMessage('approve');
-    // Повертаємо користувача на сторінку списку запитів.
+    // Отримайте запит на відпустку.
+    $entity = \Drupal::entityTypeManager()->getStorage('request')->load($request);
+    \Drupal::messenger()->addMessage('requestik' . $entity->id());
+    // Отримайте користувача і його сертифікати.
+    $user = $entity->get('user_id')->entity;
+    $certificate_query = \Drupal::entityQuery('certificate')
+      ->accessCheck(FALSE)
+      ->condition('staff_id', $user->id(), '=')
+      ->sort('created');
+    $certificates = Certificate::loadMultiple($certificate_query->execute());
+
+    // Отримайте початкову та кінцеву дати відпустки.
+    $start_date = DrupalDateTime::createFromTimestamp($entity->get('start_date')->value);
+    $end_date = DrupalDateTime::createFromTimestamp($entity->get('end_date')->value);
+
+    // Розрахуйте кількість днів від початку до кінця відпустки.
+    $interval = $start_date->diff($end_date);
+    $days_requested = $interval->days;
+
+    // Отримайте кількість доступних днів у сертифікатах.
+    $total_certificates_days = 0;
+    foreach ($certificates as $certificate) {
+      \Drupal::messenger()->addMessage('certificateteee' . $certificate->id());
+      $total_certificates_days += $certificate->get('days')->value;
+    }
+
+    // Відніміть кількість запитаних днів від сертифікатів.
+    if ($total_certificates_days >= $days_requested) {
+      // Відніміть дні лише якщо їх достатньо.
+      foreach ($certificates as $certificate) {
+        $days_to_subtract = min($certificate->get('days')->value, $days_requested);
+        $certificate->set('days', $certificate->get('days')->value - $days_to_subtract);
+        $days_requested -= $days_to_subtract;
+        if ($days_requested == 0) {
+          break;
+        }
+      }
+
+      // Збережіть зміни у сертифікатах та повідомте про успішну операцію.
+      foreach ($certificates as $certificate) {
+        $certificate->save();
+      }
+      \Drupal::messenger()->addMessage('Approved vacation request. Deducted ' . $days_requested . ' days from certificates.');
+    } else {
+      \Drupal::messenger()->addError('Insufficient days in certificates to approve the vacation request.');
+    }
+    $entity->set('status', 'approved');
+    $entity->save();
+    // Поверніть користувача на сторінку списку запитів.
     return $this->redirect('vacations_module.vacation_requests');
   }
 
+
+
   public function rejectAction($request) {
-    // Ваш код для відхилення запиту.
-    // Наприклад, зміна статусу запиту на "Rejected".
     \Drupal::messenger()->addMessage('reject');
+    $entity = \Drupal::entityTypeManager()->getStorage('request')->load($request);
+    $entity->set('status', 'rejected');
+    $entity->save();
+
+    // Заборона кешування для оновленої сутності.
+    \Drupal\Core\Cache\Cache::invalidateTags([$entity->getEntityTypeId() . ':' . $entity->id()]);
+
     // Повертаємо користувача на сторінку списку запитів.
     return $this->redirect('vacations_module.vacation_requests');
   }
