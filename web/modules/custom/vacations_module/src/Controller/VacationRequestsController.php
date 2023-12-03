@@ -9,6 +9,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Link;
 use Drupal\vacations_module\Entity\Certificate;
+use Drupal\vacations_module\Entity\Transaction;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
@@ -146,6 +147,8 @@ class VacationRequestsController extends ControllerBase {
     // Розрахуйте кількість днів від початку до кінця відпустки.
     $interval = $start_date->diff($end_date);
     $days_requested = $interval->days;
+    $days_requested_info = $interval->days;
+    \Drupal::messenger()->addMessage('request days:' . $days_requested);
 
     // Отримайте кількість доступних днів у сертифікатах.
     $total_certificates_days = 0;
@@ -165,14 +168,34 @@ class VacationRequestsController extends ControllerBase {
           break;
         }
       }
+      $all_days_current_user = 0;
+      $certificate2_query = \Drupal::entityQuery('certificate')
+        ->accessCheck(FALSE);
+      $certificate2_query->exists('staff_id');
+      $user_ids_with_certificates2 = $certificate2_query->execute();
+
+      $certificates2 = Certificate::loadMultiple($user_ids_with_certificates2);
+
+      foreach ($certificates2 as $certificate2){
+        if($certificate2->get('staff_id')->target_id == $user->id()){
+          $all_days_current_user = $all_days_current_user + $certificate2->get('days')->value;
+        }
+      }
+      $transaction = Transaction::create([
+        'user_id' => $user->id(),
+        'days_adjusted' => $days_requested_info * -1,
+        'current_balance' => $all_days_current_user * -1,
+      ]);
+      $transaction->save();
 
       // Збережіть зміни у сертифікатах та повідомте про успішну операцію.
       foreach ($certificates as $certificate) {
         $certificate->save();
       }
-      \Drupal::messenger()->addMessage('Approved vacation request. Deducted ' . $days_requested . ' days from certificates.');
+      \Drupal::messenger()->addMessage('Approved vacation request. Deducted ' . $days_requested_info . ' days from certificates.');
     } else {
       \Drupal::messenger()->addError('Insufficient days in certificates to approve the vacation request.');
+      return $this->redirect('vacations_module.vacation_requests');
     }
     $entity->set('status', 'approved');
     $entity->save();

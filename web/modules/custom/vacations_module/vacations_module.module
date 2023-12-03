@@ -1,7 +1,8 @@
 <?php
 
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\vacations_module\Entity\Certificate;
-
+use Drupal\vacations_module\Entity\Transaction;
 
 
 /**
@@ -16,17 +17,44 @@ function vacations_module_cron() {
   \Drupal::messenger()->addMessage('half year' . $sixMonthsAgo);
 
   $certificate_query = \Drupal::entityQuery('certificate')
-    ->accessCheck(FALSE);
+    ->accessCheck(FALSE)->condition('certificate_type','basic');
   $certificate_query->exists('staff_id');
   $user_ids_with_certificates = $certificate_query->execute();
 
   $certificates = Certificate::loadMultiple($user_ids_with_certificates);
+
+  $certificate2_query = \Drupal::entityQuery('certificate')
+    ->accessCheck(FALSE);
+  $certificate2_query->exists('staff_id');
+  $user_ids_with_certificates2 = $certificate2_query->execute();
+
+  $certificates2 = Certificate::loadMultiple($user_ids_with_certificates2);
+
   $existing_staff_ids = [];
   foreach ($certificates as $certificate) {
     $staff_id = $certificate->get('staff_id')->target_id;
     $certificate_id = $certificate->id();
     $existing_staff_ids[$staff_id] = $certificate_id;
+  }
 
+  foreach ($certificates2 as $certificate){
+    if($certificate->get('end_date')->value < \Drupal::time()->getCurrentTime()){
+      $all_days_current_user = 0;
+
+      foreach ($certificates2 as $certificate2){
+        if($certificate2->get('staff_id')->target_id == $certificate->get('staff_id')->target_id){
+          $all_days_current_user = $all_days_current_user + $certificate2->get('days')->value;
+        }
+
+      }
+
+      $transaction = Transaction::create([
+        'user_id' => $certificate->get('staff_id')->target_id,
+        'days_adjusted' => $certificate->get('days')->value * -1,
+        'current_balance' => $all_days_current_user + ($certificate->get('days')->value * -1),
+      ]);
+      $transaction->save();
+    }
   }
 
   foreach ($existing_staff_ids as $key => $value){
@@ -42,15 +70,43 @@ function vacations_module_cron() {
       $certificate = Certificate::create([
         'staff_id' => $current_certificate_staff_id,
         'days' => 10,
+        'start_date' => \Drupal::time()->getCurrentTime(),
+        'end_date' => strtotime('+10 minutes')
       ]);
+
       $certificate->save();
+
+      $all_days_current_user = 0;
+
+      foreach ($certificates2 as $certificate2){
+        if($certificate2->get('staff_id')->target_id == $current_certificate_staff_id){
+          $all_days_current_user = $all_days_current_user + $certificate2->get('days')->value;
+        }
+
+      }
+
+      $transaction = Transaction::create([
+        'user_id' => $current_certificate_staff_id,
+        'days_adjusted' => $certificate->get('days')->value,
+        'current_balance' => $all_days_current_user + $certificate->get('days')->value,
+      ]);
+      $transaction->save();
+
       \Drupal::messenger()->addMessage('Certificate second created');
     }
   }
 
-  foreach ($certificates as $certificate){
-    if($certificate->get('created')->value < $oneYear){
+  $certificate3_query = \Drupal::entityQuery('certificate')
+    ->accessCheck(FALSE);
+  $certificate3_query->exists('staff_id');
+  $user_ids_with_certificates3 = $certificate3_query->execute();
+
+  $certificates3 = Certificate::loadMultiple($user_ids_with_certificates3);
+
+  foreach ($certificates2 as $certificate){
+    if($certificate->get('end_date')->value < \Drupal::time()->getCurrentTime()){
       \Drupal::messenger()->addMessage('Older certificate:' . $certificate->id());
+
       $certificate->delete();
     }
   }
@@ -74,9 +130,18 @@ function vacations_module_cron() {
     $certificate = Certificate::create([
       'staff_id' => $uid,
       'days' => 10,
+      'start_date' => \Drupal::time()->getCurrentTime(),
+      'end_date' => strtotime('+10 minutes')
     ]);
     $certificate->save();
+    $transaction = Transaction::create([
+      'user_id' => $uid,
+      'days_adjusted' => $certificate->get('days')->value,
+      'current_balance' => 10,
+    ]);
+    $transaction->save();
     \Drupal::messenger()->addMessage('Certificate created');
   }
 
 }
+

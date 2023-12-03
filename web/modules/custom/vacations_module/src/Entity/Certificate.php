@@ -72,12 +72,23 @@ class Certificate extends ContentEntityBase implements ContentEntityInterface {
       ->setSetting('target_type', 'user')
       ->setSetting('handler', 'default');
 
-    $fields['start_date'] = BaseFieldDefinition::create('datetime')
+    $fields['start_date'] = BaseFieldDefinition::create('timestamp')
       ->setLabel(t('Start Date'))
       ->setDescription(t('The time that the entity was created.'));
 
+    $fields['certificate_type'] = BaseFieldDefinition::create('list_string')
+      ->setLabel(t('Certificate Type'))
+      ->setDescription(t('The type of the certificate.'))
+      ->setSettings([
+        'allowed_values' => [
+          'basic' => 'Basic',
+          'special' => 'Special',
+        ],
+      ])
+      ->setDefaultValue('basic');
 
-    $fields['end_date'] = BaseFieldDefinition::create('datetime')
+
+    $fields['end_date'] = BaseFieldDefinition::create('timestamp')
       ->setLabel(t('End Date'))
       ->setDescription(t('The time that the entity was expired.'));
 

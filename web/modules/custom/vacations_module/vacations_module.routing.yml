@@ -21,6 +21,8 @@ vacations_module.vacation_requests:
     _title: 'Vacation Requests'
   requirements:
     _permission: 'access content'
+  options:
+    no_cache: TRUE
 
 vacations_module.approve_action:
   path: '/vacation-request/{request}/approve'
@@ -35,5 +37,13 @@ vacations_module.reject_action:
   defaults:
     _controller: '\Drupal\vacations_module\Controller\VacationRequestsController::rejectAction'
     _title: 'Reject Vacation Request'
+  requirements:
+    _permission: 'administer site configuration'
+
+vacations_module.certificate_add:
+  path: '/certificate/add'
+  defaults:
+    _form: '\Drupal\vacations_module\Form\CertificateForm'
+    _title: 'Add Certificate'
   requirements:
     _permission: 'administer site configuration'

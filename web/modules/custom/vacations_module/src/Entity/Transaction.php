@@ -60,6 +60,12 @@ class Transaction extends ContentEntityBase implements ContentEntityInterface {
       ->setDescription(t('Number of days adjusted in the user\'s balance. Positive value for days added, negative for days subtracted.'))
       ->setDefaultValue(0);
 
+    $fields['user_id'] = BaseFieldDefinition::create('entity_reference')
+      ->setLabel(t('User ID'))
+      ->setDescription(t('Reference to the user making the vacation request.'))
+      ->setSetting('target_type', 'user')
+      ->setSetting('handler', 'default');
+
     $fields['current_balance'] = BaseFieldDefinition::create('integer')
       ->setLabel(t('Current Balance'))
       ->setDescription(t('Current balance of the user in days.'))
