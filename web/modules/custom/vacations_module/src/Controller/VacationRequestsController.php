@@ -107,8 +107,8 @@ class VacationRequestsController extends ControllerBase {
 
     // Add "Approve" button.
     $actions['approve'] = [
-      '#type' => 'link',
-      '#title' => $this->t('Approve'),
+      '#type' => 'button',
+      '#value' => $this->t('Approve'),
       '#url' => Url::fromRoute(
         'vacations_module.approve_action',
         ['request' => $request->id()]
@@ -117,8 +117,8 @@ class VacationRequestsController extends ControllerBase {
 
 // Add "Reject" button.
     $actions['reject'] = [
-      '#type' => 'link',
-      '#title' => $this->t('Reject'),
+      '#type' => 'button',
+      '#value' => $this->t('Reject'),
       '#url' => Url::fromRoute(
         'vacations_module.reject_action',
         ['request' => $request->id()]
